@@ -26,7 +26,7 @@ device = torch.device(
     else "cpu"
 )
 pipeline.to(device)
-audiopath = "pranay.wav"
+audiopath = "sahitya.wav"
 speakername = audiopath.split(".")[0]
 # run diarization and get one embedding per speaker
 output = pipeline(audiopath, return_embeddings=True)  # returns (diarization, np.ndarray)[web:9]

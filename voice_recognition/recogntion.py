@@ -7,12 +7,14 @@ import numpy as np
 from pyannote.audio import Pipeline, Inference
 import os
 from dotenv import load_dotenv
-load_dotenv()  # take environment variables from .env file
+load_dotenv()
+
+# <<< NEW IMPORTS >>>
+import whisper  # Whisper for offline transcription
+# Make sure you have installed whisper (e.g. pip install openai-whisper) and ffmpeg on your system.
 
 # Using os.getenv()
 huggingface = os.getenv("HUGGING_FACE")
-
-
 
 # Record 5 seconds audio
 duration = 5  # seconds
@@ -24,7 +26,6 @@ audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, 
 sd.wait()
 sf.write(filename, audio, sample_rate)
 print("Audio saved to", filename)
-
 
 # diarization pipeline (if you still want diarization)
 pipeline = Pipeline.from_pretrained(
@@ -38,41 +39,39 @@ device = torch.device(
     else "cpu"
 )
 pipeline.to(device)
-audiopath = "temp.wav"
+audiopath = filename
 speakername = audiopath.split(".")[0]
 # run diarization and get one embedding per speaker
-output = pipeline(audiopath, return_embeddings=True)  # returns (diarization, np.ndarray)[web:9]
-
+output = pipeline(audiopath, return_embeddings=True)
 embedding = output.speaker_embeddings[0]
-
 ic(embedding.shape)
-
-# Convert embedding to list for Qdrant query
 embedding_vector = embedding.tolist()
 
 # Setup Qdrant client
 client = QdrantClient("http://localhost:6333")
-
-
-
-
-# Query Qdrant with the generated embedding
 collection_name = "voicesinmyhead"
-
 try:
-        client.create_collection(
-        collection_name="{collection_name}",
-        vectors_config=models.VectorParams(size=100, distance=models.Distance.COSINE),
+    client.create_collection(
+        collection_name=collection_name,
+        vectors_config=models.VectorParams(size=len(embedding_vector), distance=models.Distance.COSINE),
     )
 except Exception as e:
     print("Collection might already exist:", e)
-    
-
 
 query_result = client.query_points(
     collection_name=collection_name,
     query=embedding_vector,
-    limit=5  # top 5 nearest neighbors
+    limit=5
 )
-
 ic(query_result)
+
+# <<< NEW: Load Whisper model and transcribe audio >>>
+print("Loading Whisper model...")
+model = whisper.load_model("base")  # you can choose "tiny","base","small","medium","large" depending on your resources
+print("Transcribing audio with Whisper...")
+whisper_result = model.transcribe(audiopath)  # returns dict with 'text' key
+transcript = whisper_result.get("text", "")
+
+# Combine speaker recognition + transcription
+print(f"Speaker embedding matched neighbors: {query_result.points[0].payload['speaker'] if query_result else 'No matches found'}")
+print("Transcription of the recording:", transcript)

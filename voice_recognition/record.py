@@ -3,7 +3,7 @@ import soundfile as sf
 
 duration = 5  # seconds
 sample_rate = 16000
-output_file = "anish.wav"
+output_file = "sahitya.wav"
 
 print("Recording...")
 audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype="float32")
