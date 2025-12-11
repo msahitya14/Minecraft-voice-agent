@@ -20,6 +20,9 @@ from qdrant_client import QdrantClient, models
 
 import time
 
+from mindserver_client import MindServerClient
+
+
 
 
 load_dotenv()
@@ -224,6 +227,10 @@ def transcription_process(command_queue, result_queue, stop_event):
 
     print("[Transcription] Ready ✅")
 
+    mind_client = MindServerClient()
+    mind_client.connect()
+    print("[Transcription] Connected to MindServer ✅")
+
     # -------------------- Main loop --------------------
 
     while not stop_event.is_set():
@@ -302,6 +309,16 @@ def transcription_process(command_queue, result_queue, stop_event):
                 print(f"SPEAKER : {speaker_name}")
                 print(f"TEXT    : {transcript}")
                 print(f"{'=' * 50}\n")
+
+                if speaker_name == 'sahitya':
+                    speaker_name = "X1n1ster"
+
+                mind_client.send_transcript(
+                    speaker=speaker_name,
+                    text=transcript,
+                    target_agent="andy",   # or whichever agent should receive it
+
+                )
 
             result_queue.put(("transcript", transcript or None, speaker_name))
 
